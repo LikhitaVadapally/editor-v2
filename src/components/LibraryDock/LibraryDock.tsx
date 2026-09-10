@@ -6,6 +6,7 @@ import { useTreeStore } from '../../store/tree.store';
 import { useEditorStore } from '../../store/editor.store';
 import { useCopyRegistryStore } from '../../store/copyRegistry.store';
 import { useLabels } from '../../hooks/useLabels';
+import { useValidateAndSave } from '../../hooks/useValidateAndSave';
 import { addQuestionsToSet } from '../../api/hierarchy';
 import { readQuestion, createQuestion, publishQuestion } from '../../api/question';
 import { detectNodeKind } from '../../utils/nodeKind';
@@ -88,6 +89,8 @@ export function LibraryDock({ onCollapse }: LibraryDockProps) {
   const addExistingQuestion = useTreeStore((s) => s.addExistingQuestion);
   const getNodeById = useTreeStore((s) => s.getNodeById);
   const updateNode = useTreeStore((s) => s.updateNode);
+  const deleteNode = useTreeStore((s) => s.deleteNode);
+  const validateAndSave = useValidateAndSave();
   const editorMode = useEditorStore((s) => s.editorMode);
   const isReadOnly = editorMode !== 'edit';
 
@@ -134,30 +137,29 @@ export function LibraryDock({ onCollapse }: LibraryDockProps) {
     async (item: IContent) => {
       if (pendingIds.has(item.identifier)) return;
 
-      // A question can only be attached to a section — never directly under
-      // the questionset root (questionset/v2/add requires collectionId to
-      // be an existing section child of root, not the root itself). isFolder
-      // is true for BOTH root and section, so it can't distinguish them —
-      // use detectNodeKind instead.
-      let targetId: string | null = selectedNodeId;
+      // Resolve where the question lands. A question may sit directly under
+      // the questionset root OR inside a section (both are valid parents).
+      // detectNodeKind distinguishes root from section (isFolder is true for
+      // both). Selecting nothing / the root / a root-level question all
+      // resolve to the root.
+      const rootNodeId = useTreeStore.getState().treeData[0]?.id ?? null;
+      let targetId: string | null = selectedNodeId ?? rootNodeId;
       if (targetId) {
         const node = getNodeById(targetId);
         const kind = node ? detectNodeKind(node) : null;
-        if (kind === 'question') targetId = node!.parent ?? null;
-        else if (kind === 'root') targetId = null;
+        if (kind === 'question') targetId = node!.parent ?? rootNodeId;
+        // kind === 'root' stays as-is — root is now a valid target.
       }
       if (!targetId) {
-        showToast(L('messages.error.selectSection', 'Select a section to add the question to'), 'error');
+        showToast(L('messages.error.noRoot', 'Question set is not ready yet'), 'error');
         return;
       }
+      const isRootTarget = targetId === rootNodeId;
 
-      // The section itself must exist on the backend before anything can be
-      // attached to it — questionset/v2/add needs a real collectionId.
-      // Refuse up front rather than staging the question locally with
-      // nothing to actually attach it to; that only ever looked "added"
-      // without ever getting persisted unless the user happened to reopen
-      // this exact question later (which is what retried the attach).
-      if (targetId.startsWith('temp-')) {
+      // A section must exist on the backend before anything can be attached to
+      // it — questionset/v2/add needs a real collectionId. The root always
+      // exists, so this guard applies only to sections.
+      if (!isRootTarget && targetId.startsWith('temp-')) {
         showToast(
           L('messages.error.sectionNotSaved', 'Save this section before adding questions to it'),
           'error',
@@ -184,22 +186,39 @@ export function LibraryDock({ onCollapse }: LibraryDockProps) {
 
       setPendingIds((prev) => new Set(prev).add(item.identifier));
       try {
-        // Standalone (Default-visibility) questions must be attached via
-        // questionset/v2/add before they exist in this section at all.
         const rootId = useTreeStore.getState().treeData[0]?.identifier;
-        try {
-          if (!rootId) throw new Error('No root questionset id');
-          await addQuestionsToSet(rootId, targetId, [item.identifier]);
-        } catch (err) {
-          console.error('[LibraryDock] attach failed:', err);
-          showToast(L('messages.error.attachFailed', 'Could not add this question — please try again'), 'error');
-          return;
+        if (!rootId) throw new Error('No root questionset id');
+
+        if (isRootTarget) {
+          // Root-level question: the add API's root path fails with
+          // "hierarchy is empty" on a brand-new set (no hierarchy row yet), so
+          // persist through hierarchy/update instead — the same save Add
+          // Section uses, which tolerates an absent hierarchy. Set visibility
+          // to Default first so buildSavePayload keeps it out of nodesModified
+          // and just lists it in the root's children.
+          const linkedId = addExistingQuestion(targetId, item as unknown as { identifier: string } & Record<string, unknown>);
+          updateNode(linkedId, { visibility: 'Default' });
+          const ok = await validateAndSave();
+          if (!ok) {
+            deleteNode(linkedId); // roll back the optimistic insert
+            showToast(L('messages.error.attachFailed', 'Could not add this question — please try again'), 'error');
+            return;
+          }
+        } else {
+          // Section: attach via questionset/v2/add (section already persisted).
+          try {
+            await addQuestionsToSet(rootId, targetId, [item.identifier]);
+          } catch (err) {
+            console.error('[LibraryDock] attach failed:', err);
+            showToast(L('messages.error.attachFailed', 'Could not add this question — please try again'), 'error');
+            return;
+          }
+          // Attach confirmed — now link it into the local tree (old-editor
+          // semantics — nothing new is created, the do_ id joins as-is).
+          const result = addExistingQuestion(targetId, item as unknown as { identifier: string } & Record<string, unknown>);
+          updateNode(result, { visibility: 'Default' });
         }
 
-        // Attach confirmed — now link it into the local tree (old-editor
-        // semantics — nothing new is created, the do_ id joins as-is).
-        const result = addExistingQuestion(targetId, item as unknown as { identifier: string } & Record<string, unknown>);
-        updateNode(result, { visibility: 'Default' });
         // {NAME} is a substitution placeholder, not literal text — label()
         // has no interpolation of its own, so both the config value and
         // this fallback use the same placeholder and get it swapped in here.
@@ -212,7 +231,7 @@ export function LibraryDock({ onCollapse }: LibraryDockProps) {
         });
       }
     },
-    [pendingIds, selectedNodeId, getNodeById, addExistingQuestion, updateNode, showToast, L],
+    [pendingIds, selectedNodeId, getNodeById, addExistingQuestion, updateNode, deleteNode, validateAndSave, showToast, L],
   );
 
   // Creates an independent copy of a Library question (own do_ id,
@@ -226,20 +245,22 @@ export function LibraryDock({ onCollapse }: LibraryDockProps) {
     async (item: IContent) => {
       if (pendingIds.has(item.identifier)) return;
 
-      // Same target-section resolution as handleAdd — a copy also needs a
-      // real section to live in, never the questionset root directly.
-      let targetId: string | null = selectedNodeId;
+      // Same target resolution as handleAdd — a copy may live directly under
+      // the root or inside a section.
+      const rootNodeId = useTreeStore.getState().treeData[0]?.id ?? null;
+      let targetId: string | null = selectedNodeId ?? rootNodeId;
       if (targetId) {
         const node = getNodeById(targetId);
         const kind = node ? detectNodeKind(node) : null;
-        if (kind === 'question') targetId = node!.parent ?? null;
-        else if (kind === 'root') targetId = null;
+        if (kind === 'question') targetId = node!.parent ?? rootNodeId;
+        // kind === 'root' stays as-is.
       }
       if (!targetId) {
-        showToast(L('messages.error.selectSection', 'Select a section to add the question to'), 'error');
+        showToast(L('messages.error.noRoot', 'Question set is not ready yet'), 'error');
         return;
       }
-      if (targetId.startsWith('temp-')) {
+      const isRootTarget = targetId === rootNodeId;
+      if (!isRootTarget && targetId.startsWith('temp-')) {
         showToast(
           L('messages.error.sectionNotSaved', 'Save this section before adding questions to it'),
           'error',
@@ -294,14 +315,19 @@ export function LibraryDock({ onCollapse }: LibraryDockProps) {
           console.error('[LibraryDock] copy publish failed, stays Draft:', publishErr);
         }
 
-        try {
-          const rootId = useTreeStore.getState().treeData[0]?.identifier;
-          if (!rootId) throw new Error('No root questionset id');
-          await addQuestionsToSet(rootId, targetId, [newId]);
-        } catch (err) {
-          console.error('[LibraryDock] copy attach failed:', err);
-          showToast(L('messages.error.attachFailed', 'Could not add this question — please try again'), 'error');
-          return;
+        // Section: attach the copy now via questionset/v2/add. Root: skip —
+        // it's persisted below through hierarchy/update (validateAndSave),
+        // which tolerates an empty hierarchy on a brand-new set.
+        if (!isRootTarget) {
+          try {
+            const rootId = useTreeStore.getState().treeData[0]?.identifier;
+            if (!rootId) throw new Error('No root questionset id');
+            await addQuestionsToSet(rootId, targetId, [newId]);
+          } catch (err) {
+            console.error('[LibraryDock] copy attach failed:', err);
+            showToast(L('messages.error.attachFailed', 'Could not add this question — please try again'), 'error');
+            return;
+          }
         }
 
         // Re-read the just-created (and possibly just-published) question —
@@ -329,6 +355,16 @@ export function LibraryDock({ onCollapse }: LibraryDockProps) {
         const resultId = addExistingQuestion(targetId, { ...finalMeta, identifier: newId });
         updateNode(resultId, { visibility: 'Default' });
 
+        // Root copy is only persisted once the hierarchy save runs.
+        if (isRootTarget) {
+          const ok = await validateAndSave();
+          if (!ok) {
+            deleteNode(resultId); // roll back the optimistic insert
+            showToast(L('messages.error.attachFailed', 'Could not add this question — please try again'), 'error');
+            return;
+          }
+        }
+
         if (published) {
           showToast(L('messages.success.questionCopied', '"{NAME}" copied').replace('{NAME}', displayName), 'success');
         } else {
@@ -348,7 +384,7 @@ export function LibraryDock({ onCollapse }: LibraryDockProps) {
         });
       }
     },
-    [pendingIds, selectedNodeId, getNodeById, addExistingQuestion, updateNode, showToast, L],
+    [pendingIds, selectedNodeId, getNodeById, addExistingQuestion, updateNode, deleteNode, validateAndSave, showToast, L],
   );
 
   return (

@@ -110,25 +110,38 @@ export async function updateHierarchy(
   };
 }
 
-/** `PATCH questionset/v2/add` — attaches existing questions to a section; appends after maxIndex. */
+/**
+ * `PATCH questionset/v2/add` — attaches existing questions to a collection; appends after maxIndex.
+ * `collectionId` is the target section id, or null/'' to attach directly to the root QuestionSet
+ * (the backend's root-attach path, used when there is no section).
+ */
 export async function addQuestionsToSet(
   rootId: string,
-  collectionId: string,
+  collectionId: string | null,
   children: string[],
 ): Promise<void> {
+  const questionset: Record<string, unknown> = { rootId, children };
+  if (collectionId) questionset.collectionId = collectionId;
   await apiClient.patch(URLS.questionSet.add, {
-    request: { questionset: { rootId, collectionId, children } },
+    request: { questionset },
   });
 }
 
-/** `DELETE questionset/v2/remove` — detaches questions from a section (never retires them). */
+/**
+ * `DELETE questionset/v2/remove` — detaches questions from a collection (never retires them).
+ * `collectionId` is the section id, or null/'' to detach a question that sits directly under the
+ * root (the backend's root-remove path). A root-level question's parent IS the root, so passing it
+ * as `collectionId` is rejected — omit it instead.
+ */
 export async function removeQuestionsFromSet(
   rootId: string,
-  collectionId: string,
+  collectionId: string | null,
   children: string[],
 ): Promise<void> {
+  const questionset: Record<string, unknown> = { rootId, children };
+  if (collectionId) questionset.collectionId = collectionId;
   await apiClient.delete(URLS.questionSet.removeNode, {
-    data: { request: { questionset: { rootId, collectionId, children } } },
+    data: { request: { questionset } },
   });
 }
 
