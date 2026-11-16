@@ -39,6 +39,10 @@ export const URLS = {
   composite: {
     search: 'composite/v3/search',
   },
+  /** Skill (competency) frameworks: `CompetencyFramework` objects, which `framework/v1/read` 404s on. */
+  competencyFramework: {
+    read: 'competency-framework/v3/read',
+  },
   framework: {
     read: 'framework/v1/read',
     termRead: 'framework/v1/term/read',

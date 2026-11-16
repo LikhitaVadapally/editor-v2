@@ -9,6 +9,7 @@ import { notifyError, apiErrorMessage } from '../utils/notify';
 import { label } from '../utils/labels';
 import { queryClient } from '../queryClient';
 import { allKnownFrameworkCategoryCodes } from './useFramework';
+import { cachedSkillField, SKILL_FRAMEWORK_FIELD } from './useSkillFramework';
 import { v4 as genUuid } from 'uuid';
 
 // ---------------------------------------------------------------------------
@@ -189,10 +190,14 @@ export function buildSavePayload(
       ?? (nodes[0]?.metadata?.framework as string | undefined);
     const frameworkDataReady = !!effectiveFramework
       && queryClient.getQueryState(['framework', effectiveFramework])?.status === 'success';
+    // The skill framework's field (e.g. `skill`) holds the set's skill codes; it may share a code
+    // with a curriculum category, so the stale-category sweep below must leave it alone.
+    const setSkillFramework = (rootEntry.metadata[SKILL_FRAMEWORK_FIELD] ?? nodes[0]?.metadata?.[SKILL_FRAMEWORK_FIELD]) as string | undefined;
+    const setSkillField = cachedSkillField(setSkillFramework);
     if (effectiveFramework && frameworkDataReady) {
       const currentCodes = categoryCodesForFramework(effectiveFramework);
       for (const code of allKnownFrameworkCategoryCodes()) {
-        if (!currentCodes.has(code)) {
+        if (!currentCodes.has(code) && code !== setSkillField) {
           rootEntry.metadata[code] = [];
         }
       }

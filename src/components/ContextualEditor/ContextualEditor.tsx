@@ -17,6 +17,8 @@ import { useLabels } from '../../hooks/useLabels';
 import { searchFrameworks } from '../../api/framework';
 import SparkMetaForm, { fieldMatchesSection, SingleSelectDropdown, adaptFieldsForFramework } from '../SparkMetaForm/SparkMetaForm';
 import formStyles from '../SparkMetaForm/SparkMetaForm.module.scss';
+import SkillFrameworkFields from '../SkillFrameworkFields/SkillFrameworkFields';
+import { cachedSkillField, SKILL_FRAMEWORK_FIELD } from '../../hooks/useSkillFramework';
 import QuestionDetail from '../QuestionDetail/QuestionDetail';
 
 const QuestionEditor = lazy(() => import('../QuestionEditor/QuestionEditor'));
@@ -196,6 +198,16 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
     setContentFramework(value || null);
     handleFormChange('framework', value);
   }, [selectedNodeId, updateNode, setContentFramework, handleFormChange]);
+
+  // Skill framework (a CompetencyFramework, separate from the curriculum Framework above). Its skills
+  // are codes under the framework's own field, so switching frameworks clears the old field.
+  const rootSkillFramework = (activeNodeMeta as Record<string, unknown> | undefined)?.[SKILL_FRAMEWORK_FIELD] as string | undefined;
+  const handleSkillFrameworkChange = useCallback((value: string) => {
+    if (value === rootSkillFramework) return;
+    const oldField = cachedSkillField(rootSkillFramework);
+    if (oldField) handleFormChange(oldField, []);
+    handleFormChange(SKILL_FRAMEWORK_FIELD, value);
+  }, [rootSkillFramework, handleFormChange]);
 
   const handleFormValidityChange = useCallback((isValid: boolean) => {
     onToolbarEvent({ action: 'onFormStatusChange', data: { isValid } });
@@ -513,6 +525,17 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
                         />
                       </div>
                     )}
+
+                    <div style={{ marginBottom: 22 }}>
+                      <SkillFrameworkFields
+                        idPrefix="set"
+                        frameworkId={rootSkillFramework}
+                        onFrameworkChange={handleSkillFrameworkChange}
+                        values={(activeNodeMeta as Record<string, unknown>) ?? {}}
+                        onSkillsChange={handleFormChange}
+                        readOnly={isReadOnly}
+                      />
+                    </div>
 
                     <SparkMetaForm
                       fields={withLicenseOptions(formConfig)}

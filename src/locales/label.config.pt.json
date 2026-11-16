@@ -487,7 +487,12 @@
     "dynamicAssessExampleHide": "Ocultar",
     "dynamicAssessExampleIntro": "Exemplo: você escolhe 2 habilidades e pede {N} fáceis, {N} médias e {N} difíceis.",
     "dynamicAssessExampleTotal": "Cada aluno recebe {TOTAL} questões.",
-    "dynamicAssessExampleEach": "No mínimo {MIN} questões virão de cada habilidade."
+    "dynamicAssessExampleEach": "No mínimo {MIN} questões virão de cada habilidade.",
+    "skillFramework": "Estrutura de habilidades",
+    "selectSkillFramework": "Selecionar uma estrutura de habilidades",
+    "noSkillFramework": "O conjunto de questões não tem estrutura de habilidades",
+    "skills": "Habilidades",
+    "selectSkills": "Selecionar habilidades"
   },
   "categoryLabels": {
     "Multiselect Multiple Choice Question": "Pergunta de Múltipla Escolha",

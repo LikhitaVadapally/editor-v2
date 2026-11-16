@@ -699,7 +699,7 @@ interface MultiSelectSearchProps {
   hasError?: boolean;
 }
 
-const MultiSelectSearch: React.FC<MultiSelectSearchProps> = ({
+export const MultiSelectSearch: React.FC<MultiSelectSearchProps> = ({
   fieldId,
   value,
   options,

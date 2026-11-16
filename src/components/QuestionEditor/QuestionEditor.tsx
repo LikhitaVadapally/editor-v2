@@ -11,6 +11,8 @@ import { difficultyLevelField } from '../../utils/difficultyLevelField';
 import { useLabels } from '../../hooks/useLabels';
 import SparkMetaForm, { SingleSelectDropdown } from '../SparkMetaForm/SparkMetaForm';
 import formStyles from '../SparkMetaForm/SparkMetaForm.module.scss';
+import SkillFrameworkFields from '../SkillFrameworkFields/SkillFrameworkFields';
+import { SKILL_FRAMEWORK_FIELD, useSetSkillFramework } from '../../hooks/useSkillFramework';
 import { useFramework } from '../../hooks/useFramework';
 import { searchFrameworks } from '../../api/framework';
 import { useQuery } from '@tanstack/react-query';
@@ -336,6 +338,12 @@ export default function QuestionEditor({ editorMode, onBack }: QuestionEditorPro
   // board/medium/gradeLevel/subject/audience are no longer inherited from
   // the question set — each question leaves them unset until chosen explicitly.
   const detailValues = (activeNodeMeta as Record<string, unknown>) ?? {};
+  // A question always follows its question set's skill framework; only its skills are picked here.
+  const setSkillFramework = useSetSkillFramework();
+  const handleQuestionSkillsChange = (skillField: string, codes: string[]) => {
+    if (detailValues[SKILL_FRAMEWORK_FIELD] !== setSkillFramework) handleDetailChange(SKILL_FRAMEWORK_FIELD, setSkillFramework);
+    handleDetailChange(skillField, codes);
+  };
 
   // Standalone Framework picker for this question — mirrors the root's
   // Audience & Curriculum tab (ContextualEditor.tsx) but stays fully local
@@ -582,6 +590,15 @@ export default function QuestionEditor({ editorMode, onBack }: QuestionEditorPro
                     </div>
                   )}
                 </div>
+              )}
+              {setSkillFramework && (
+                <SkillFrameworkFields
+                  idPrefix="question"
+                  frameworkId={setSkillFramework}
+                  values={detailValues}
+                  onSkillsChange={handleQuestionSkillsChange}
+                  readOnly={isReadOnly}
+                />
               )}
               <SparkMetaForm
                 fields={restQuestionFields.map((f) => ({ ...f, editable: true }))}

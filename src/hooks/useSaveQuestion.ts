@@ -36,6 +36,7 @@ import { resolveQuestionType } from '../registry';
 import { htmlToText } from '../utils/html';
 import { queryClient } from '../queryClient';
 import { resolveTargetFrameworkIds, allKnownFrameworkCategoryCodes } from './useFramework';
+import { cachedSkillField, SKILL_FRAMEWORK_FIELD } from './useSkillFramework';
 import type { IFramework } from '../types/framework';
 
 // VersionKeyValidator.scala throws this exact message (ClientException,
@@ -538,9 +539,21 @@ export function buildLiveQuestionMeta(): { questionName: string; questionMeta: R
     // field leaves its old value in place server-side (same fix as
     // useSaveHierarchy.ts's stale-category sweep; harmless no-op on create,
     // since there's nothing stored yet to leave behind).
+    // The skill framework's own field (e.g. `skill`, `cuisine`) holds this question's skill codes,
+    // which lern credits on a full-marks answer. It can share a code with a curriculum category, so
+    // the stale-category sweep must never clear it.
+    const skillFramework = detailMeta[SKILL_FRAMEWORK_FIELD];
+    const skillField = typeof skillFramework === 'string' ? cachedSkillField(skillFramework) : undefined;
     if (frameworkCategoryCodes.length) {
       for (const code of allKnownFrameworkCategoryCodes()) {
-        if (!frameworkCategoryCodes.includes(code)) taxonomy[code] = [];
+        if (!frameworkCategoryCodes.includes(code) && code !== skillField) taxonomy[code] = [];
+      }
+    }
+    if (typeof skillFramework === 'string' && skillFramework) {
+      taxonomy[SKILL_FRAMEWORK_FIELD] = skillFramework;
+      if (skillField && detailMeta[skillField] !== undefined) {
+        const v = detailMeta[skillField];
+        taxonomy[skillField] = Array.isArray(v) ? v : (v != null && v !== '' ? [v] : []);
       }
     }
 

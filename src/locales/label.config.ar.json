@@ -496,6 +496,11 @@
     "dynamicAssessExampleHide": "إخفاء",
     "dynamicAssessExampleIntro": "مثال: تختار مهارتين وتطلب {N} سهلة و{N} متوسطة و{N} صعبة.",
     "dynamicAssessExampleTotal": "يحصل كل متعلم على {TOTAL} أسئلة.",
-    "dynamicAssessExampleEach": "سيأتي {MIN} أسئلة على الأقل من كل مهارة."
+    "dynamicAssessExampleEach": "سيأتي {MIN} أسئلة على الأقل من كل مهارة.",
+    "skillFramework": "إطار المهارات",
+    "selectSkillFramework": "اختر إطار المهارات",
+    "noSkillFramework": "لا يوجد إطار مهارات لمجموعة الأسئلة",
+    "skills": "المهارات",
+    "selectSkills": "اختر المهارات"
   }
 }

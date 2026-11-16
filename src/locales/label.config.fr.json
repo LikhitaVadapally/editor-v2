@@ -487,7 +487,12 @@
     "dynamicAssessExampleHide": "Masquer",
     "dynamicAssessExampleIntro": "Exemple : vous choisissez 2 compétences et demandez {N} faciles, {N} moyennes et {N} difficiles.",
     "dynamicAssessExampleTotal": "Chaque apprenant reçoit {TOTAL} questions.",
-    "dynamicAssessExampleEach": "Au moins {MIN} questions viendront de chaque compétence."
+    "dynamicAssessExampleEach": "Au moins {MIN} questions viendront de chaque compétence.",
+    "skillFramework": "Référentiel de compétences",
+    "selectSkillFramework": "Sélectionner un référentiel de compétences",
+    "noSkillFramework": "Le jeu de questions n'a pas de référentiel de compétences",
+    "skills": "Compétences",
+    "selectSkills": "Sélectionner des compétences"
   },
   "categoryLabels": {
     "Multiselect Multiple Choice Question": "Question à choix multiple",

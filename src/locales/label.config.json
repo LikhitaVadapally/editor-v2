@@ -505,6 +505,11 @@
     "dynamicAssessExampleHide": "Hide",
     "dynamicAssessExampleIntro": "Example: you pick 2 skills and ask for {N} Easy, {N} Medium and {N} Difficult.",
     "dynamicAssessExampleTotal": "Each learner gets {TOTAL} questions.",
-    "dynamicAssessExampleEach": "Minimum {MIN} questions will come from each skill."
+    "dynamicAssessExampleEach": "Minimum {MIN} questions will come from each skill.",
+    "skillFramework": "Skill framework",
+    "selectSkillFramework": "Select a skill framework",
+    "noSkillFramework": "The question set has no skill framework",
+    "skills": "Skills",
+    "selectSkills": "Select skills"
   }
 }
