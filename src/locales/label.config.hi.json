@@ -73,14 +73,14 @@
     "noSkillFramework": "प्रश्न सेट का कोई कौशल फ्रेमवर्क नहीं है",
     "skills": "कौशल",
     "selectSkills": "कौशल चुनें",
-    "pickSetSkillsHint": "Pick this set's skills to see the questions tagged with them first.",
-    "matchingSkillsHeading": "Questions for this set's skills",
-    "noSkillMatchTitle": "No questions are tagged with this set's skills yet",
-    "noSkillMatchHint": "Tag questions with these skills, or add one from the questions below.",
-    "otherQuestionsHeading": "Other questions ({count})",
-    "otherQuestionsHint": "These aren't tagged with any of this set's skills. You can still add them.",
-    "questionSkills": "Skills",
-    "skillOfThisSet": "One of this set's skills"
+    "pickSetSkillsHint": "इस सेट के कौशल चुनें ताकि उनसे टैग किए गए प्रश्न पहले दिखें।",
+    "matchingSkillsHeading": "इस सेट के कौशल के प्रश्न",
+    "noSkillMatchTitle": "अभी तक कोई प्रश्न इस सेट के कौशल से टैग नहीं है",
+    "noSkillMatchHint": "प्रश्नों को इन कौशल से टैग करें, या नीचे दिए प्रश्नों में से कोई जोड़ें।",
+    "otherQuestionsHeading": "अन्य प्रश्न ({count})",
+    "otherQuestionsHint": "ये इस सेट के किसी भी कौशल से टैग नहीं हैं। आप फिर भी इन्हें जोड़ सकते हैं।",
+    "skillOfThisSet": "इस सेट का एक कौशल",
+    "loadMoreOtherQuestions": "और अन्य प्रश्न लोड करें"
   },
   "messages": {
     "error": {

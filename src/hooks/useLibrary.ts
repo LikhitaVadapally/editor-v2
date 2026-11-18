@@ -5,9 +5,11 @@ import { useCopyRegistryStore } from '../store/copyRegistry.store';
 import { compositeSearch, DEFAULT_SEARCH_FIELDS } from '../api/content';
 import { SKILL_FRAMEWORK_FIELD, asCodes, currentSetSkills, useSetSkills, useSkillFrameworkOptions } from './useSkillFramework';
 import type { LibraryFilters } from '../store/library.store';
-import type { IContent } from '../types/content';
+import { contentField, type IContent } from '../types/content';
 
 const PAGE_SIZE = 20;
+/** How long the skills picker must be still before the library re-searches. */
+const SKILLS_RELOAD_DELAY_MS = 400;
 
 /**
  * Filters for the questions that teach the set's skills: the set's skill framework, and at least
@@ -20,19 +22,16 @@ export function buildSetLibraryFilters(
 }
 
 /**
- * The "Other questions" list: everything the plain browse found, minus what the matching list
- * already shows and anything that carries one of the set's skills (so paging the matching list
- * can't surface a question twice).
+ * The "Other questions" list: everything the plain browse found except what carries one of the
+ * set's skills, which is exactly what the matching list shows.
  */
 export function selectOtherQuestions(
-  others: IContent[], shownIds: Set<string>, frameworkId: string, skillField: string, skills: string[],
+  others: IContent[], frameworkId: string, skillField: string, skills: string[],
 ): IContent[] {
   const wanted = new Set(skills);
   return others.filter((item) => {
-    if (shownIds.has(item.identifier)) return false;
-    const meta = item as unknown as Record<string, unknown>;
-    if (meta[SKILL_FRAMEWORK_FIELD] !== frameworkId) return true;
-    return !asCodes(meta[skillField]).some((code) => wanted.has(code));
+    if (contentField(item, SKILL_FRAMEWORK_FIELD) !== frameworkId) return true;
+    return !asCodes(contentField(item, skillField)).some((code) => wanted.has(code));
   });
 }
 
@@ -101,21 +100,22 @@ async function loadLibrary(
     // With skills on the set, the main list is the questions tagged with them; the rest of the
     // same browse sits below it under "Other questions".
     const set = currentSetSkills();
-    const matching = set.ready && set.frameworkId && set.skillField
-      ? buildSetLibraryFilters(set.frameworkId, set.skillField, set.skills)
+    const { frameworkId, skillField } = set;
+    const matching = set.ready && frameworkId && skillField
+      ? { frameworkId, skillField, filters: buildSetLibraryFilters(frameworkId, skillField, set.skills) }
       : undefined;
 
     const currentOffset = reset ? 0 : state.offset;
     const sortBy = sortOf(sortAZ);
     const [{ content, count }, others] = await Promise.all([
       compositeSearch({
-        filters: { ...filters, ...(matching ?? {}) },
+        filters: { ...filters, ...(matching?.filters ?? {}) },
         query,
         limit: query ? 50 : PAGE_SIZE,
         offset: currentOffset,
         channel: channel || undefined,
         sortBy,
-        fields: librarySearchFields(set.frameworkId ? set.skillField : undefined),
+        fields: librarySearchFields(skillField),
       }),
       // Only on a fresh browse; each list has its own "Load more".
       matching && reset
@@ -126,7 +126,7 @@ async function loadLibrary(
           offset: 0,
           channel: channel || undefined,
           sortBy,
-          fields: librarySearchFields(set.skillField),
+          fields: librarySearchFields(skillField),
         })
         : Promise.resolve(undefined),
     ]);
@@ -140,18 +140,17 @@ async function loadLibrary(
     if (reset) state.setContent(filtered, count, content.length);
     else state.appendContent(filtered, count, content.length);
 
-    if (!matching) state.setOtherContent([]);
+    if (!matching) state.clearOtherContent();
     else if (others) {
-      const shown = new Set(useLibraryStore.getState().allContent.map((item) => item.identifier));
-      state.setOtherContent(
-        selectOtherQuestions(
+      state.setOtherContent({
+        content: selectOtherQuestions(
           others.content.filter((item) => !isCopy(item.identifier)),
-          shown, set.frameworkId as string, set.skillField as string, set.skills,
+          matching.frameworkId, matching.skillField, set.skills,
         ),
-        otherQuestionsTotal(others.count, count),
-        others.content.length,
-        others.count,
-      );
+        total: otherQuestionsTotal(others.count, count),
+        rawCount: others.content.length,
+        rawTotal: others.count,
+      });
     }
   } catch (e) {
     console.error('[useLibrary] load error:', e);
@@ -163,8 +162,8 @@ async function loadLibrary(
 /** The next page of "Other questions": the plain browse from where it stopped, minus anything matching. */
 async function loadMoreOtherQuestions(channel: string): Promise<void> {
   const state = useLibraryStore.getState();
-  const set = currentSetSkills();
-  if (state.otherLoading || !set.ready || !set.frameworkId || !set.skillField) return;
+  const { ready, frameworkId, skillField, skills } = currentSetSkills();
+  if (state.otherLoading || !ready || !frameworkId || !skillField) return;
   const seq = ++otherSeq;
   state.setOtherLoading(true);
   try {
@@ -176,14 +175,12 @@ async function loadMoreOtherQuestions(channel: string): Promise<void> {
       offset: otherOffset,
       channel: channel || undefined,
       sortBy: sortOf(sortAZ),
-      fields: librarySearchFields(set.skillField),
+      fields: librarySearchFields(skillField),
     });
     if (seq !== otherSeq) return; // a fresh browse replaced the list meanwhile
-    const now = useLibraryStore.getState();
     const { isCopy } = useCopyRegistryStore.getState();
-    const shown = new Set([...now.allContent, ...now.allOtherContent].map((item) => item.identifier));
-    now.appendOtherContent(
-      selectOtherQuestions(content.filter((item) => !isCopy(item.identifier)), shown, set.frameworkId, set.skillField, set.skills),
+    useLibraryStore.getState().appendOtherContent(
+      selectOtherQuestions(content.filter((item) => !isCopy(item.identifier)), frameworkId, skillField, skills),
       content.length,
     );
   } catch (e) {
@@ -231,7 +228,8 @@ export function useLibrary() {
   }, [channel]);
 
   // Re-run the current browse when the set's skills change, so the two sections follow them.
-  // Skipped on mount: the effect above already loads, and the framework's field arrives later.
+  // Not on mount (the effect above already loads), and debounced: each click in the skills picker
+  // would otherwise start two searches.
   const setSkills = useSetSkills();
   const hasFrameworks = useSkillFrameworkOptions().length > 0;
   // Keyed on the framework and its field too, not only once skills are chosen: rows show their skills
@@ -240,11 +238,16 @@ export function useLibrary() {
     ? `${setSkills.frameworkId}|${setSkills.skillField}|${setSkills.skills.join(',')}`
     : '';
   const firstSkillsKey = useRef(true);
+  const skillsTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(skillsTimerRef.current), []);
   useEffect(() => {
-    if (firstSkillsKey.current) { firstSkillsKey.current = false; if (!skillsKey) return; }
-    load(store.searchQuery, store.activeFilter, store.advancedFilters, true, store.sortAZ);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [skillsKey]);
+    if (firstSkillsKey.current) { firstSkillsKey.current = false; return; }
+    clearTimeout(skillsTimerRef.current);
+    skillsTimerRef.current = setTimeout(() => {
+      const { searchQuery, activeFilter, advancedFilters, sortAZ } = useLibraryStore.getState();
+      load(searchQuery, activeFilter, advancedFilters, true, sortAZ);
+    }, SKILLS_RELOAD_DELAY_MS);
+  }, [skillsKey, load]);
 
   const search = useCallback(
     (query: string) => {

@@ -1,7 +1,7 @@
 /**
  * Skills of a `CompetencyFramework` (Knowlg `/competency-framework/v3/read`), worked out the way
- * lern-service does it (`CompetencyFrameworkUtil.parseTree` / `parseSkillField`), so a course is
- * only ever tagged with skills lern can credit, under the field lern reads them from.
+ * lern-service does it (`CompetencyFrameworkUtil.parseTree` / `parseSkillField`), so a question set
+ * or question is only ever tagged with skills lern can credit, under the field lern reads them from.
  *
  * The skill category is the framework's LAST category by `index` (falling back to its position in
  * the response), whatever the adopter names it. Its code is the content field skill tags are
@@ -42,7 +42,7 @@ function skillCategory(categories: CompetencyCategoryWire[] | undefined): Compet
   return ordered[ordered.length - 1]?.c;
 }
 
-/** The content field a course's skill tags live in: the skill category's code. */
+/** The field a question set's or question's skill tags live in: the skill category's code. */
 export function competencySkillField(categories: CompetencyCategoryWire[] | undefined): string | undefined {
   return skillCategory(categories)?.code || undefined;
 }

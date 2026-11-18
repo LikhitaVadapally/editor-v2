@@ -17,6 +17,14 @@ export interface IContent {
   gradeLevel?: string[];
 }
 
+/**
+ * A search field of a library item that isn't on `IContent` because its name is only known at
+ * runtime, such as a skill framework's skill field (`skill`, `cuisine`, ...).
+ */
+export function contentField(item: IContent, field: string): unknown {
+  return (item as unknown as Record<string, unknown>)[field];
+}
+
 export interface ILibraryItem extends IContent {
   isSelected?: boolean;
   isDragging?: boolean;

@@ -467,7 +467,7 @@
     "addToQuestionSet": "إضافة إلى مجموعة الأسئلة",
     "copyQuestion": "نسخ إلى هذا القسم",
     "loadMoreQuestions": "تحميل المزيد من الأسئلة",
-    "loadMoreOtherQuestions": "Load more other questions",
+    "loadMoreOtherQuestions": "تحميل المزيد من الأسئلة الأخرى",
     "loading": "جارٍ التحميل…",
     "loadMore": "تحميل المزيد",
     "filterAll": "الكل",
@@ -503,13 +503,12 @@
     "noSkillFramework": "لا يوجد إطار مهارات لمجموعة الأسئلة",
     "skills": "المهارات",
     "selectSkills": "اختر المهارات",
-    "pickSetSkillsHint": "Pick this set's skills to see the questions tagged with them first.",
-    "matchingSkillsHeading": "Questions for this set's skills",
-    "noSkillMatchTitle": "No questions are tagged with this set's skills yet",
-    "noSkillMatchHint": "Tag questions with these skills, or add one from the questions below.",
-    "otherQuestionsHeading": "Other questions ({count})",
-    "otherQuestionsHint": "These aren't tagged with any of this set's skills. You can still add them.",
-    "questionSkills": "Skills",
-    "skillOfThisSet": "One of this set's skills"
+    "pickSetSkillsHint": "اختر مهارات هذه المجموعة لترى الأسئلة الموسومة بها أولًا.",
+    "matchingSkillsHeading": "أسئلة لمهارات هذه المجموعة",
+    "noSkillMatchTitle": "لا توجد أسئلة موسومة بمهارات هذه المجموعة بعد",
+    "noSkillMatchHint": "ضع وسوم هذه المهارات على الأسئلة، أو أضف سؤالًا من الأسئلة أدناه.",
+    "otherQuestionsHeading": "أسئلة أخرى ({count})",
+    "otherQuestionsHint": "هذه الأسئلة غير موسومة بأي من مهارات هذه المجموعة. لا يزال بإمكانك إضافتها.",
+    "skillOfThisSet": "إحدى مهارات هذه المجموعة"
   }
 }

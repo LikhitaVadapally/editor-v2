@@ -9,7 +9,7 @@ import { notifyError, apiErrorMessage } from '../utils/notify';
 import { label } from '../utils/labels';
 import { queryClient } from '../queryClient';
 import { allKnownFrameworkCategoryCodes } from './useFramework';
-import { cachedSkillField, SKILL_FRAMEWORK_FIELD } from './useSkillFramework';
+import { cachedSkillField, currentSetSkills, loadSkillFramework, SKILL_FRAMEWORK_FIELD } from './useSkillFramework';
 import { v4 as genUuid } from 'uuid';
 
 // ---------------------------------------------------------------------------
@@ -194,7 +194,10 @@ export function buildSavePayload(
     // with a curriculum category, so the stale-category sweep below must leave it alone.
     const setSkillFramework = (rootEntry.metadata[SKILL_FRAMEWORK_FIELD] ?? nodes[0]?.metadata?.[SKILL_FRAMEWORK_FIELD]) as string | undefined;
     const setSkillField = cachedSkillField(setSkillFramework);
-    if (effectiveFramework && frameworkDataReady) {
+    // A set whose skill field isn't known can't tell its skills from a stale category: skip the sweep
+    // rather than risk clearing them. The save loads the framework first, so this is only a failed read.
+    const skillFieldKnown = !setSkillFramework || !!setSkillField;
+    if (effectiveFramework && frameworkDataReady && skillFieldKnown) {
       const currentCodes = categoryCodesForFramework(effectiveFramework);
       for (const code of allKnownFrameworkCategoryCodes()) {
         if (!currentCodes.has(code) && code !== setSkillField) {
@@ -281,6 +284,9 @@ export function useSaveHierarchy() {
       };
       swapTempSectionIds(useTreeStore.getState().treeData);
 
+      // The payload spares the set's skill field from the stale-category sweep, so make sure its
+      // skill framework is loaded (the cache may have dropped it while the form wasn't showing it).
+      await loadSkillFramework(currentSetSkills().frameworkId);
       const { treeData, treeCache, replaceNodeId } = useTreeStore.getState();
       const { nodesModified, hierarchy } = buildSavePayload(treeData, treeCache, channel, rootPrimaryCategory);
       const { identifiers } = await updateHierarchy(contentId, nodesModified, hierarchy, lastUpdatedBy);

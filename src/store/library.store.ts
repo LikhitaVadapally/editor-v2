@@ -30,7 +30,9 @@ interface LibraryState {
   offset: number;
   sortAZ: boolean;
   setContent: (content: IContent[], total: number, rawCount: number) => void;
-  setOtherContent: (content: IContent[], total?: number, rawCount?: number, rawTotal?: number) => void;
+  /** A fresh "Other questions" list: the first page, how many there are, and the raw page/total it was cut from. */
+  setOtherContent: (page: { content: IContent[]; total: number; rawCount: number; rawTotal: number }) => void;
+  clearOtherContent: () => void;
   appendOtherContent: (content: IContent[], rawCount: number) => void;
   setOtherLoading: (loading: boolean) => void;
   appendContent: (content: IContent[], total: number, rawCount: number) => void;
@@ -65,10 +67,12 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     get().applyFilter();
   },
 
-  setOtherContent: (content, total = 0, rawCount = 0, rawTotal = 0) => {
+  setOtherContent: ({ content, total, rawCount, rawTotal }) => {
     set({ allOtherContent: content, otherTotal: total, otherOffset: rawCount, otherRawTotal: rawTotal });
     get().applyFilter();
   },
+
+  clearOtherContent: () => get().setOtherContent({ content: [], total: 0, rawCount: 0, rawTotal: 0 }),
 
   appendOtherContent: (content, rawCount) => {
     set((state) => ({ allOtherContent: [...state.allOtherContent, ...content], otherOffset: state.otherOffset + rawCount }));

@@ -36,14 +36,9 @@ import { resolveQuestionType } from '../registry';
 import { htmlToText } from '../utils/html';
 import { queryClient } from '../queryClient';
 import { resolveTargetFrameworkIds, allKnownFrameworkCategoryCodes } from './useFramework';
-import { cachedSkillField, SKILL_FRAMEWORK_FIELD } from './useSkillFramework';
+import { cachedSkillField, currentSetSkills, loadSkillFramework, SKILL_FRAMEWORK_FIELD } from './useSkillFramework';
 import type { IFramework } from '../types/framework';
 
-// VersionKeyValidator.scala throws this exact message (ClientException,
-// ResponseCode.CLIENT_ERROR) for a stale versionKey on update — narrow the
-// retry to it specifically so a genuinely different failure (auth, network,
-// a real validation error) surfaces on its own instead of being masked by a
-// needless retry-and-different-error.
 /**
  * A category value as the question API stores it. Categories are lists, except `board`: the
  * Question schema keeps it as one string, and a non-empty list there makes question/v2/create and
@@ -56,6 +51,11 @@ export function toQuestionCategoryValue(field: string, v: unknown): unknown {
   return list;
 }
 
+// VersionKeyValidator.scala throws this exact message (ClientException,
+// ResponseCode.CLIENT_ERROR) for a stale versionKey on update — narrow the
+// retry to it specifically so a genuinely different failure (auth, network,
+// a real validation error) surfaces on its own instead of being masked by a
+// needless retry-and-different-error.
 function isStaleVersionKeyError(err: unknown): boolean {
   return err instanceof Error && err.message.toLowerCase().includes('version key');
 }
@@ -556,7 +556,9 @@ export function buildLiveQuestionMeta(): { questionName: string; questionMeta: R
     // the stale-category sweep must never clear it.
     const skillFramework = detailMeta[SKILL_FRAMEWORK_FIELD];
     const skillField = typeof skillFramework === 'string' ? cachedSkillField(skillFramework) : undefined;
-    if (frameworkCategoryCodes.length) {
+    // An unknown skill field can't be told apart from a stale category: skip the sweep rather than clear it.
+    const skillFieldKnown = !skillFramework || !!skillField;
+    if (frameworkCategoryCodes.length && skillFieldKnown) {
       for (const code of allKnownFrameworkCategoryCodes()) {
         if (!frameworkCategoryCodes.includes(code) && code !== skillField) taxonomy[code] = [];
       }
@@ -564,8 +566,7 @@ export function buildLiveQuestionMeta(): { questionName: string; questionMeta: R
     if (typeof skillFramework === 'string' && skillFramework) {
       taxonomy[SKILL_FRAMEWORK_FIELD] = skillFramework;
       if (skillField && detailMeta[skillField] !== undefined) {
-        const v = detailMeta[skillField];
-        taxonomy[skillField] = Array.isArray(v) ? v : (v != null && v !== '' ? [v] : []);
+        taxonomy[skillField] = toQuestionCategoryValue(skillField, detailMeta[skillField]);
       }
     }
 
@@ -675,6 +676,11 @@ export function useSaveQuestion() {
 
     setIsSaving(true);
     try {
+      // The payload keeps the question's skills out of the stale-category sweep, which needs the
+      // skill framework loaded (a question follows its set's framework).
+      const node = useTreeStore.getState().getNodeById(selectedNodeId);
+      const ownFramework = { ...(node?.metadata ?? {}), ...(useTreeStore.getState().treeCache[selectedNodeId] ?? {}) }[SKILL_FRAMEWORK_FIELD];
+      await loadSkillFramework(typeof ownFramework === 'string' && ownFramework ? ownFramework : currentSetSkills().frameworkId);
       const built = buildLiveQuestionMeta();
       if (!built) return false;
       const { questionName, questionMeta } = built;

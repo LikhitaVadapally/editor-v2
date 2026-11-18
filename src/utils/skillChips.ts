@@ -1,4 +1,5 @@
 import { SKILL_FRAMEWORK_FIELD, asCodes } from '../hooks/useSkillFramework';
+import { contentField, type IContent } from '../types/content';
 
 export interface SkillChip {
   code: string;
@@ -13,16 +14,16 @@ export interface SkillChip {
  * something else there. Codes resolve to names through `nameOf`, falling back to the code.
  */
 export function questionSkillChips(
-  item: Record<string, unknown>,
+  item: IContent,
   set: { frameworkId?: string; skillField?: string; skills: string[] },
   nameOf: (code: string) => string | undefined,
   cap = 3,
 ): { chips: SkillChip[]; more: number } {
-  if (!set.frameworkId || !set.skillField || item[SKILL_FRAMEWORK_FIELD] !== set.frameworkId) {
+  if (!set.frameworkId || !set.skillField || contentField(item, SKILL_FRAMEWORK_FIELD) !== set.frameworkId) {
     return { chips: [], more: 0 };
   }
   const own = new Set(set.skills);
-  const codes = [...new Set(asCodes(item[set.skillField]))];
+  const codes = [...new Set(asCodes(contentField(item, set.skillField)))];
   const ordered = [...codes.filter((c) => own.has(c)), ...codes.filter((c) => !own.has(c))];
   const all = ordered.map((code) => ({ code, name: nameOf(code) ?? code, matched: own.has(code) }));
   return { chips: all.slice(0, cap), more: Math.max(0, all.length - cap) };

@@ -18,7 +18,7 @@ import { searchFrameworks } from '../../api/framework';
 import SparkMetaForm, { fieldMatchesSection, SingleSelectDropdown, adaptFieldsForFramework } from '../SparkMetaForm/SparkMetaForm';
 import formStyles from '../SparkMetaForm/SparkMetaForm.module.scss';
 import SkillFrameworkFields from '../SkillFrameworkFields/SkillFrameworkFields';
-import { cachedSkillField, SKILL_FRAMEWORK_FIELD } from '../../hooks/useSkillFramework';
+import { cachedSkillField, loadSkillFramework, SKILL_FRAMEWORK_FIELD } from '../../hooks/useSkillFramework';
 import QuestionDetail from '../QuestionDetail/QuestionDetail';
 import SkillChips from '../LibraryDock/SkillChips';
 import { useLibraryStore } from '../../store/library.store';
@@ -208,8 +208,10 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
   // Skill framework (a CompetencyFramework, separate from the curriculum Framework above). Its skills
   // are codes under the framework's own field, so switching frameworks clears the old field.
   const rootSkillFramework = (activeNodeMeta as Record<string, unknown> | undefined)?.[SKILL_FRAMEWORK_FIELD] as string | undefined;
-  const handleSkillFrameworkChange = useCallback((value: string) => {
+  const handleSkillFrameworkChange = useCallback(async (value: string) => {
     if (value === rootSkillFramework) return;
+    // The old framework may have left the query cache; load it so its field is known and cleared.
+    await loadSkillFramework(rootSkillFramework);
     const oldField = cachedSkillField(rootSkillFramework);
     if (oldField) handleFormChange(oldField, []);
     handleFormChange(SKILL_FRAMEWORK_FIELD, value);
