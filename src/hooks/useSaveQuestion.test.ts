@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { buildLiveQuestionMeta } from './useSaveQuestion';
+import { buildLiveQuestionMeta, toQuestionCategoryValue } from './useSaveQuestion';
 import { useQuestionStore, normalizeDifficultyLevel } from '../store/question.store';
 import { useTreeStore } from '../store/tree.store';
 import { useEditorStore } from '../store/editor.store';
@@ -65,5 +65,23 @@ describe('normalizeDifficultyLevel / loading a question', () => {
     expect(useQuestionStore.getState().difficultyLevel).toBe('DIFFICULT');
     useQuestionStore.getState().setActiveQuestion({ identifier: 'do_2', name: 'q' } as IQuestion);
     expect(useQuestionStore.getState().difficultyLevel).toBe('');
+  });
+});
+
+describe('toQuestionCategoryValue (question API category shapes)', () => {
+  it('sends board as one string; a list makes question create hang (positive)', () => {
+    expect(toQuestionCategoryValue('board', ['CBSE'])).toBe('CBSE');
+    expect(toQuestionCategoryValue('board', 'CBSE')).toBe('CBSE');
+  });
+
+  it('keeps the other categories as lists (positive)', () => {
+    expect(toQuestionCategoryValue('medium', 'English')).toEqual(['English']);
+    expect(toQuestionCategoryValue('gradeLevel', ['Class 1'])).toEqual(['Class 1']);
+  });
+
+  it('clears an empty board with an empty list, as the other categories are (negative)', () => {
+    expect(toQuestionCategoryValue('board', [])).toEqual([]);
+    expect(toQuestionCategoryValue('board', '')).toEqual([]);
+    expect(toQuestionCategoryValue('subject', null)).toEqual([]);
   });
 });

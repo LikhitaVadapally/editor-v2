@@ -44,6 +44,18 @@ import type { IFramework } from '../types/framework';
 // retry to it specifically so a genuinely different failure (auth, network,
 // a real validation error) surfaces on its own instead of being masked by a
 // needless retry-and-different-error.
+/**
+ * A category value as the question API stores it. Categories are lists, except `board`: the
+ * Question schema keeps it as one string, and a non-empty list there makes question/v2/create and
+ * update hang until the gateway times out (a 500 after 30s, with no error from the service). An
+ * empty list still clears it, so a stale board is cleared the same way as the other categories.
+ */
+export function toQuestionCategoryValue(field: string, v: unknown): unknown {
+  const list = Array.isArray(v) ? v : (v != null && v !== '' ? [v] : []);
+  if (field === 'board') return list.length ? list[0] : [];
+  return list;
+}
+
 function isStaleVersionKeyError(err: unknown): boolean {
   return err instanceof Error && err.message.toLowerCase().includes('version key');
 }
@@ -531,7 +543,7 @@ export function buildLiveQuestionMeta(): { questionName: string; questionMeta: R
     for (const field of categoryFields) {
       const v = detailMeta[field];
       if (v === undefined) continue;
-      taxonomy[field] = Array.isArray(v) ? v : (v != null && v !== '' ? [v] : []);
+      taxonomy[field] = toQuestionCategoryValue(field, v);
     }
     // Explicitly clear (not omit) any category left over from a framework
     // this question has since moved away from — an UPDATE is a PATCH
