@@ -14,6 +14,7 @@ import { detectNodeKind } from '../../utils/nodeKind';
 import { resolveByCategory } from '../../registry';
 import type { IContent } from '../../types/content';
 import { QUESTION_FILTERS } from '../../types/content';
+import SkillChips from './SkillChips';
 
 // =============================================================================
 // Helpers
@@ -485,6 +486,7 @@ export function LibraryDock({ onCollapse }: LibraryDockProps) {
           <span className="type-pill">{typeBadge(item.primaryCategory)}</span>
           {metaLine(item) && <span className="sub">{metaLine(item)}</span>}
         </div>
+        <SkillChips item={item} />
       </div>
       <button
         type="button"

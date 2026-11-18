@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildSetLibraryFilters, otherQuestionsTotal, selectOtherQuestions, setLibraryHint } from './useLibrary';
+import { buildSetLibraryFilters, librarySearchFields, otherQuestionsTotal, selectOtherQuestions, setLibraryHint } from './useLibrary';
+import { DEFAULT_SEARCH_FIELDS } from '../api/content';
 import type { IContent } from '../types/content';
 
 const q = (identifier: string, extra: Record<string, unknown> = {}) => ({ identifier, name: identifier, ...extra }) as unknown as IContent;
@@ -63,5 +64,15 @@ describe('otherQuestionsTotal', () => {
   it('never goes below zero (negative)', () => {
     expect(otherQuestionsTotal(1, 3)).toBe(0);
     expect(otherQuestionsTotal(0, 0)).toBe(0);
+  });
+});
+
+describe('librarySearchFields', () => {
+  it("asks for the skill framework and its field once the set's framework is known (positive)", () => {
+    expect(librarySearchFields('skill')).toEqual([...DEFAULT_SEARCH_FIELDS, 'competencyFramework', 'skill']);
+  });
+
+  it('leaves the default fields until then (negative)', () => {
+    expect(librarySearchFields(undefined)).toBeUndefined();
   });
 });

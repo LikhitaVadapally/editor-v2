@@ -499,7 +499,9 @@
     "noSkillMatchTitle": "No questions are tagged with this set's skills yet",
     "noSkillMatchHint": "Tag questions with these skills, or add one from the questions below.",
     "otherQuestionsHeading": "Other questions ({count})",
-    "otherQuestionsHint": "These aren't tagged with any of this set's skills. You can still add them."
+    "otherQuestionsHint": "These aren't tagged with any of this set's skills. You can still add them.",
+    "questionSkills": "Skills",
+    "skillOfThisSet": "One of this set's skills"
   },
   "categoryLabels": {
     "Multiselect Multiple Choice Question": "Question à choix multiple",

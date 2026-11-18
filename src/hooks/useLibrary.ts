@@ -48,6 +48,15 @@ export function otherQuestionsTotal(otherCount: number, matchedCount: number): n
   return Math.max(0, otherCount - matchedCount);
 }
 
+/**
+ * Fields each library search asks for: the defaults plus the skill framework and its skill field
+ * once the set's framework is known, so rows can show their skills and "Other questions" can drop
+ * the matching ones.
+ */
+export function librarySearchFields(skillField: string | undefined): string[] | undefined {
+  return skillField ? [...DEFAULT_SEARCH_FIELDS, SKILL_FRAMEWORK_FIELD, skillField] : undefined;
+}
+
 /** The hint above the library: ask for the set's skills when it has none yet and the channel offers frameworks. */
 export function setLibraryHint(opts: { ready: boolean; hasFrameworks: boolean }): 'pickSkills' | null {
   return !opts.ready && opts.hasFrameworks ? 'pickSkills' : null;
@@ -106,6 +115,7 @@ async function loadLibrary(
         offset: currentOffset,
         channel: channel || undefined,
         sortBy,
+        fields: librarySearchFields(set.frameworkId ? set.skillField : undefined),
       }),
       // Only on a fresh browse; each list has its own "Load more".
       matching && reset
@@ -116,7 +126,7 @@ async function loadLibrary(
           offset: 0,
           channel: channel || undefined,
           sortBy,
-          fields: [...DEFAULT_SEARCH_FIELDS, SKILL_FRAMEWORK_FIELD, set.skillField as string],
+          fields: librarySearchFields(set.skillField),
         })
         : Promise.resolve(undefined),
     ]);
@@ -166,7 +176,7 @@ async function loadMoreOtherQuestions(channel: string): Promise<void> {
       offset: otherOffset,
       channel: channel || undefined,
       sortBy: sortOf(sortAZ),
-      fields: [...DEFAULT_SEARCH_FIELDS, SKILL_FRAMEWORK_FIELD, set.skillField],
+      fields: librarySearchFields(set.skillField),
     });
     if (seq !== otherSeq) return; // a fresh browse replaced the list meanwhile
     const now = useLibraryStore.getState();
@@ -224,7 +234,11 @@ export function useLibrary() {
   // Skipped on mount: the effect above already loads, and the framework's field arrives later.
   const setSkills = useSetSkills();
   const hasFrameworks = useSkillFrameworkOptions().length > 0;
-  const skillsKey = setSkills.ready ? `${setSkills.frameworkId}|${setSkills.skillField}|${setSkills.skills.join(',')}` : '';
+  // Keyed on the framework and its field too, not only once skills are chosen: rows show their skills
+  // as soon as the set's framework is known, which needs the skill field in the search.
+  const skillsKey = setSkills.frameworkId && setSkills.skillField
+    ? `${setSkills.frameworkId}|${setSkills.skillField}|${setSkills.skills.join(',')}`
+    : '';
   const firstSkillsKey = useRef(true);
   useEffect(() => {
     if (firstSkillsKey.current) { firstSkillsKey.current = false; if (!skillsKey) return; }

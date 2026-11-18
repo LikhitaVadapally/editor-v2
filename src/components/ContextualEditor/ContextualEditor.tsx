@@ -20,6 +20,8 @@ import formStyles from '../SparkMetaForm/SparkMetaForm.module.scss';
 import SkillFrameworkFields from '../SkillFrameworkFields/SkillFrameworkFields';
 import { cachedSkillField, SKILL_FRAMEWORK_FIELD } from '../../hooks/useSkillFramework';
 import QuestionDetail from '../QuestionDetail/QuestionDetail';
+import SkillChips from '../LibraryDock/SkillChips';
+import { useLibraryStore } from '../../store/library.store';
 
 const QuestionEditor = lazy(() => import('../QuestionEditor/QuestionEditor'));
 const QumlPlayer    = lazy(() => import('../QumlPlayer/QumlPlayer'));
@@ -82,6 +84,10 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
   const isDynamicAssess = useIsDynamicAssess();
   const showPreview = useEditorStore((s) => s.showPreview);
   const previewQuestionId = useEditorStore((s) => s.previewQuestionId);
+  // A question previewed from the library: its skills show above the player, as on its library row.
+  const previewLibraryItem = useLibraryStore((s) => (previewQuestionId
+    ? [...s.allContent, ...s.allOtherContent].find((item) => item.identifier === previewQuestionId)
+    : undefined));
   const isCurrentNodeRoot = useEditorStore((s) => s.isCurrentNodeRoot);
   const isCurrentNodeFolder = useEditorStore((s) => s.isCurrentNodeFolder);
   const isCurrentNodeQuestion = useEditorStore((s) => s.isCurrentNodeQuestion);
@@ -297,6 +303,7 @@ const ContextualEditor: React.FC<ContextualEditorProps> = ({
           whole set regardless of what's selected in the hierarchy. */}
       {showPreview && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 300, background: '#fff', display: 'flex', flexDirection: 'column' }}>
+          {previewLibraryItem && <SkillChips item={previewLibraryItem} cap={10} className="ce-lib-skills-preview" />}
           <Suspense fallback={<PanelSpinner />}>
             <QumlPlayer
               questionSetId={selectedNodeId ?? ''}

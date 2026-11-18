@@ -226,6 +226,17 @@ aside.ce-lib { max-width: none; margin: 0; }
 .ce-lib-item .meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .ce-lib-item .type-pill { font-size: 10px; font-weight: 500; color: var(--sb-text-muted); }
 .ce-lib-item .sub { font-size: 11.5px; color: var(--sb-text-muted); }
+/* A library question's skills (its skill framework's codes, by name); the set's own skills first. */
+.ce-lib-skills { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.ce-lib-skill {
+  font-size: 10.5px; line-height: 1.4; padding: 1px 7px; border-radius: 999px;
+  border: 1px solid var(--sb-border-soft); color: var(--sb-text-muted); background: #fff;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ce-lib-skill.is-match { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-deep); font-weight: 500; }
+.ce-lib-skill.is-more { border-style: dashed; }
+.ce-lib-skills-preview { margin: 0; padding: 10px 16px; border-bottom: 1px solid var(--sb-border-soft); }
+.ce-lib-skills-preview .ce-lib-skill { font-size: 12px; padding: 2px 9px; }
 .ce-lib-item .add-btn,
 .ce-lib-item .copy-btn {
   flex: none; width: 28px; height: 28px; border-radius: var(--sbx-radius-lg); border: 1px solid var(--sb-border);
