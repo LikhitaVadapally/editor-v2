@@ -501,6 +501,12 @@
     "selectSkillFramework": "اختر إطار المهارات",
     "noSkillFramework": "لا يوجد إطار مهارات لمجموعة الأسئلة",
     "skills": "المهارات",
-    "selectSkills": "اختر المهارات"
+    "selectSkills": "اختر المهارات",
+    "pickSetSkillsHint": "Pick this set's skills to see the questions tagged with them first.",
+    "matchingSkillsHeading": "Questions for this set's skills",
+    "noSkillMatchTitle": "No questions are tagged with this set's skills yet",
+    "noSkillMatchHint": "Tag questions with these skills, or add one from the questions below.",
+    "otherQuestionsHeading": "Other questions ({count})",
+    "otherQuestionsHint": "These aren't tagged with any of this set's skills. You can still add them."
   }
 }

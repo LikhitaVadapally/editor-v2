@@ -492,7 +492,13 @@
     "selectSkillFramework": "Selecionar uma estrutura de habilidades",
     "noSkillFramework": "O conjunto de questões não tem estrutura de habilidades",
     "skills": "Habilidades",
-    "selectSkills": "Selecionar habilidades"
+    "selectSkills": "Selecionar habilidades",
+    "pickSetSkillsHint": "Pick this set's skills to see the questions tagged with them first.",
+    "matchingSkillsHeading": "Questions for this set's skills",
+    "noSkillMatchTitle": "No questions are tagged with this set's skills yet",
+    "noSkillMatchHint": "Tag questions with these skills, or add one from the questions below.",
+    "otherQuestionsHeading": "Other questions ({count})",
+    "otherQuestionsHint": "These aren't tagged with any of this set's skills. You can still add them."
   },
   "categoryLabels": {
     "Multiselect Multiple Choice Question": "Pergunta de Múltipla Escolha",

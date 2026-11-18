@@ -2,10 +2,46 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useLibraryStore } from '../store/library.store';
 import { useEditorStore } from '../store/editor.store';
 import { useCopyRegistryStore } from '../store/copyRegistry.store';
-import { compositeSearch } from '../api/content';
+import { compositeSearch, DEFAULT_SEARCH_FIELDS } from '../api/content';
+import { SKILL_FRAMEWORK_FIELD, asCodes, currentSetSkills, useSetSkills, useSkillFrameworkOptions } from './useSkillFramework';
 import type { LibraryFilters } from '../store/library.store';
+import type { IContent } from '../types/content';
 
 const PAGE_SIZE = 20;
+/** One page of "Other questions": they're there to stay reachable, not to be browsed exhaustively. */
+const OTHER_QUESTIONS_LIMIT = 50;
+
+/**
+ * Filters for the questions that teach the set's skills: the set's skill framework, and at least
+ * one of its skills under the framework's own field (a list means "any of").
+ */
+export function buildSetLibraryFilters(
+  frameworkId: string, skillField: string, skills: string[],
+): Record<string, unknown> {
+  return { [SKILL_FRAMEWORK_FIELD]: [frameworkId], [skillField]: skills };
+}
+
+/**
+ * The "Other questions" list: everything the plain browse found, minus what the matching list
+ * already shows and anything that carries one of the set's skills (so paging the matching list
+ * can't surface a question twice).
+ */
+export function selectOtherQuestions(
+  others: IContent[], shownIds: Set<string>, frameworkId: string, skillField: string, skills: string[],
+): IContent[] {
+  const wanted = new Set(skills);
+  return others.filter((item) => {
+    if (shownIds.has(item.identifier)) return false;
+    const meta = item as unknown as Record<string, unknown>;
+    if (meta[SKILL_FRAMEWORK_FIELD] !== frameworkId) return true;
+    return !asCodes(meta[skillField]).some((code) => wanted.has(code));
+  });
+}
+
+/** The hint above the library: ask for the set's skills when it has none yet and the channel offers frameworks. */
+export function setLibraryHint(opts: { ready: boolean; hasFrameworks: boolean }): 'pickSkills' | null {
+  return !opts.ready && opts.hasFrameworks ? 'pickSkills' : null;
+}
 
 // Module-level, not per-hook-instance — every caller (the LibraryDock panel
 // AND imperative refreshes from elsewhere, e.g. after a question is
@@ -33,15 +69,37 @@ async function loadLibrary(
     if (advancedFilters?.gradeLevel?.length) filters['gradeLevel'] = advancedFilters.gradeLevel;
     if (advancedFilters?.subject?.length) filters['subject'] = advancedFilters.subject;
 
+    // With skills on the set, the main list is the questions tagged with them; the rest of the
+    // same browse sits below it under "Other questions".
+    const set = currentSetSkills();
+    const matching = set.ready && set.frameworkId && set.skillField
+      ? buildSetLibraryFilters(set.frameworkId, set.skillField, set.skills)
+      : undefined;
+
     const currentOffset = reset ? 0 : state.offset;
-    const { content, count } = await compositeSearch({
-      filters,
-      query,
-      limit: query ? 50 : PAGE_SIZE,
-      offset: currentOffset,
-      channel: channel || undefined,
-      sortBy: sortAZ ? { name: 'asc' } : { lastUpdatedOn: 'desc' },
-    });
+    const sortBy: Record<string, string> = sortAZ ? { name: 'asc' } : { lastUpdatedOn: 'desc' };
+    const [{ content, count }, others] = await Promise.all([
+      compositeSearch({
+        filters: { ...filters, ...(matching ?? {}) },
+        query,
+        limit: query ? 50 : PAGE_SIZE,
+        offset: currentOffset,
+        channel: channel || undefined,
+        sortBy,
+      }),
+      // Only on a fresh browse: "Load more" pages the matching list alone.
+      matching && reset
+        ? compositeSearch({
+          filters,
+          query,
+          limit: OTHER_QUESTIONS_LIMIT,
+          offset: 0,
+          channel: channel || undefined,
+          sortBy,
+          fields: [...DEFAULT_SEARCH_FIELDS, SKILL_FRAMEWORK_FIELD, set.skillField as string],
+        })
+        : Promise.resolve(undefined),
+    ]);
 
     if (requestId !== requestSeq) return; // stale response — a newer load superseded it
     // Copies (see copyRegistry.store.ts) are visibility:"Default" so their
@@ -51,6 +109,15 @@ async function loadLibrary(
     const filtered = content.filter((item) => !isCopy(item.identifier));
     if (reset) state.setContent(filtered, count, content.length);
     else state.appendContent(filtered, count, content.length);
+
+    if (!matching) state.setOtherContent([]);
+    else if (others) {
+      const shown = new Set(useLibraryStore.getState().allContent.map((item) => item.identifier));
+      state.setOtherContent(selectOtherQuestions(
+        others.content.filter((item) => !isCopy(item.identifier)),
+        shown, set.frameworkId as string, set.skillField as string, set.skills,
+      ));
+    }
   } catch (e) {
     console.error('[useLibrary] load error:', e);
   } finally {
@@ -94,6 +161,18 @@ export function useLibrary() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channel]);
+
+  // Re-run the current browse when the set's skills change, so the two sections follow them.
+  // Skipped on mount: the effect above already loads, and the framework's field arrives later.
+  const setSkills = useSetSkills();
+  const hasFrameworks = useSkillFrameworkOptions().length > 0;
+  const skillsKey = setSkills.ready ? `${setSkills.frameworkId}|${setSkills.skillField}|${setSkills.skills.join(',')}` : '';
+  const firstSkillsKey = useRef(true);
+  useEffect(() => {
+    if (firstSkillsKey.current) { firstSkillsKey.current = false; if (!skillsKey) return; }
+    load(store.searchQuery, store.activeFilter, store.advancedFilters, true, store.sortAZ);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [skillsKey]);
 
   const search = useCallback(
     (query: string) => {
@@ -140,6 +219,10 @@ export function useLibrary() {
 
   return {
     content: store.filteredContent,
+    /** The main list holds the questions tagged with the set's skills. */
+    skillMatched: setSkills.ready,
+    otherContent: store.otherContent,
+    hint: setLibraryHint({ ready: setSkills.ready, hasFrameworks }),
     isLoading: store.isLoading,
     totalCount: store.totalCount,
     activeFilter: store.activeFilter,

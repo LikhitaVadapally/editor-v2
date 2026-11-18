@@ -13,6 +13,9 @@ export interface LibraryFilters {
 interface LibraryState {
   allContent: IContent[];
   filteredContent: IContent[];
+  /** Questions without the set's skills, shown collapsed under the matching ones (one page). */
+  allOtherContent: IContent[];
+  otherContent: IContent[];
   searchQuery: string;
   activeFilter: string;
   advancedFilters: LibraryFilters;
@@ -21,6 +24,7 @@ interface LibraryState {
   offset: number;
   sortAZ: boolean;
   setContent: (content: IContent[], total: number, rawCount: number) => void;
+  setOtherContent: (content: IContent[]) => void;
   appendContent: (content: IContent[], total: number, rawCount: number) => void;
   setFilter: (filter: string) => void;
   setSearch: (query: string) => void;
@@ -34,6 +38,8 @@ interface LibraryState {
 export const useLibraryStore = create<LibraryState>((set, get) => ({
   allContent: [],
   filteredContent: [],
+  allOtherContent: [],
+  otherContent: [],
   searchQuery: '',
   activeFilter: 'all',
   advancedFilters: {},
@@ -44,6 +50,11 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
   setContent: (content, total, rawCount) => {
     set({ allContent: content, totalCount: total, offset: rawCount });
+    get().applyFilter();
+  },
+
+  setOtherContent: (content) => {
+    set({ allOtherContent: content });
     get().applyFilter();
   },
 
@@ -69,22 +80,30 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   setSortAZ: (sortAZ) => set({ sortAZ }),
 
   applyFilter: () => {
-    const { allContent, activeFilter, searchQuery } = get();
-    let filtered = allContent;
-
-    if (activeFilter && activeFilter !== 'all') {
-      const filterLower = activeFilter.toLowerCase();
-      filtered = filtered.filter((item) =>
-        [item.mimeType ?? '', item.primaryCategory ?? '', item.contentType ?? '']
-          .join(' ').toLowerCase().includes(filterLower),
-      );
-    }
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter((item) => (item.name ?? '').toLowerCase().includes(q));
-    }
-
-    set({ filteredContent: filtered });
+    const { allContent, allOtherContent, activeFilter, searchQuery } = get();
+    set({
+      filteredContent: filterItems(allContent, activeFilter, searchQuery),
+      otherContent: filterItems(allOtherContent, activeFilter, searchQuery),
+    });
   },
 }));
+
+/** The type chip and the name search, applied the same way to both lists. */
+function filterItems(items: IContent[], activeFilter: string, searchQuery: string): IContent[] {
+  let filtered = items;
+
+  if (activeFilter && activeFilter !== 'all') {
+    const filterLower = activeFilter.toLowerCase();
+    filtered = filtered.filter((item) =>
+      [item.mimeType ?? '', item.primaryCategory ?? '', item.contentType ?? '']
+        .join(' ').toLowerCase().includes(filterLower),
+    );
+  }
+
+  if (searchQuery.trim()) {
+    const q = searchQuery.toLowerCase().trim();
+    filtered = filtered.filter((item) => (item.name ?? '').toLowerCase().includes(q));
+  }
+
+  return filtered;
+}

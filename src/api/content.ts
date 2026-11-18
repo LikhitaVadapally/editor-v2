@@ -2,6 +2,13 @@ import { apiClient } from './client';
 import { URLS } from './urls';
 import type { IContent } from '../types/content';
 
+/** Fields the library asks search for by default. */
+export const DEFAULT_SEARCH_FIELDS = [
+  'identifier', 'name', 'mimeType', 'contentType', 'primaryCategory',
+  'appIcon', 'channel', 'questionType', 'difficultyLevel', 'bloomsLevel',
+  'visibility', 'subject', 'gradeLevel',
+];
+
 export async function compositeSearch(params: {
   filters?: Record<string, unknown>;
   query?: string;
@@ -29,11 +36,7 @@ export async function compositeSearch(params: {
       limit: params.limit ?? 20,
       offset: params.offset ?? 0,
       sort_by: params.sortBy ?? { lastUpdatedOn: 'desc' },
-      fields: params.fields ?? [
-        'identifier', 'name', 'mimeType', 'contentType', 'primaryCategory',
-        'appIcon', 'channel', 'questionType', 'difficultyLevel', 'bloomsLevel',
-        'visibility', 'subject', 'gradeLevel',
-      ],
+      fields: params.fields ?? DEFAULT_SEARCH_FIELDS,
     },
   });
 

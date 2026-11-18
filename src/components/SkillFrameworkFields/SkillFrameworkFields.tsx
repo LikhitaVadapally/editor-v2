@@ -2,7 +2,7 @@ import React from 'react';
 import { MultiSelectSearch, SingleSelectDropdown } from '../SparkMetaForm/SparkMetaForm';
 import formStyles from '../SparkMetaForm/SparkMetaForm.module.scss';
 import { useLabels } from '../../hooks/useLabels';
-import { useSkillFrameworkOptions, useSkillFrameworkSkills } from '../../hooks/useSkillFramework';
+import { asCodes, useSkillFrameworkOptions, useSkillFrameworkSkills } from '../../hooks/useSkillFramework';
 
 export interface SkillFrameworkFieldsProps {
   /** The chosen skill framework id (`competencyFramework`). */
@@ -19,8 +19,6 @@ export interface SkillFrameworkFieldsProps {
   readOnly?: boolean;
   idPrefix: string;
 }
-
-const asCodes = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : v ? [String(v)] : []);
 
 /**
  * "Skill framework" + "Skills": tags a question set or question with a skill framework's skills,

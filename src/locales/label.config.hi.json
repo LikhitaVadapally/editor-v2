@@ -72,7 +72,13 @@
     "selectSkillFramework": "कौशल फ्रेमवर्क चुनें",
     "noSkillFramework": "प्रश्न सेट का कोई कौशल फ्रेमवर्क नहीं है",
     "skills": "कौशल",
-    "selectSkills": "कौशल चुनें"
+    "selectSkills": "कौशल चुनें",
+    "pickSetSkillsHint": "Pick this set's skills to see the questions tagged with them first.",
+    "matchingSkillsHeading": "Questions for this set's skills",
+    "noSkillMatchTitle": "No questions are tagged with this set's skills yet",
+    "noSkillMatchHint": "Tag questions with these skills, or add one from the questions below.",
+    "otherQuestionsHeading": "Other questions ({count})",
+    "otherQuestionsHint": "These aren't tagged with any of this set's skills. You can still add them."
   },
   "messages": {
     "error": {

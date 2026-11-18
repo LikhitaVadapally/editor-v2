@@ -83,8 +83,12 @@ interface LibraryDockProps {
 
 export function LibraryDock({ onCollapse }: LibraryDockProps) {
   const L = useLabels();
-  const { content, isLoading, activeFilter, searchQuery, sortAZ, hasMore, search, setFilter, toggleSort, loadMore } =
-    useLibrary();
+  const {
+    content, otherContent, skillMatched, hint, isLoading, activeFilter, searchQuery, sortAZ, hasMore,
+    search, setFilter, toggleSort, loadMore,
+  } = useLibrary();
+  // "Other questions" starts collapsed: the set's own skills are what the author is looking for.
+  const [othersOpen, setOthersOpen] = useState(false);
 
   const selectedNodeId = useTreeStore((s) => s.selectedNodeId);
   const addExistingQuestion = useTreeStore((s) => s.addExistingQuestion);
@@ -453,6 +457,57 @@ export function LibraryDock({ onCollapse }: LibraryDockProps) {
     [pendingIds, selectedNodeId, getNodeById, addExistingQuestion, updateNode, deleteNode, validateRequiredFields, saveWithOutcome, showToast, L],
   );
 
+  // One row, shared by both sections so add / copy / preview behave the same in each.
+  const renderItem = (item: IContent) => (
+    <div
+      key={item.identifier}
+      className="ce-lib-item"
+      role="listitem"
+      tabIndex={0}
+      onClick={() => handlePreview(item)}
+      onKeyDown={(e) => {
+        // Enter/Space bubbles here from the nested "+" button too
+        // (before its own native click activation fires) — only
+        // treat it as "preview the row" when the row itself is the
+        // actual target, so a keyboard user tabbed to the add
+        // button can still activate it instead of always previewing.
+        if (e.target !== e.currentTarget) return;
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handlePreview(item); }
+      }}
+      title={L('ui.previewThisQuestion', 'Preview this question')}
+      aria-label={`${L('ui.previewThisQuestion', 'Preview this question')}: ${item.name}`}
+    >
+      <span className="ico"><Icon name={typeIcon(item.primaryCategory)} size={15} /></span>
+      <div className="body">
+        <p className="nm">{item.name || L('ui.untitledQuestion', 'Untitled Question')}</p>
+        <div className="meta">
+          <span className="type-pill">{typeBadge(item.primaryCategory)}</span>
+          {metaLine(item) && <span className="sub">{metaLine(item)}</span>}
+        </div>
+      </div>
+      <button
+        type="button"
+        className="copy-btn"
+        disabled={isReadOnly || pendingIds.has(item.identifier)}
+        onClick={(e) => { e.stopPropagation(); void handleCopy(item); }}
+        title={L('ui.copyQuestion', 'Copy to this section')}
+        aria-label={`${L('ui.copyQuestion', 'Copy to this section')}: ${item.name}`}
+      >
+        <Icon name="copy" size={13} />
+      </button>
+      <button
+        type="button"
+        className="add-btn"
+        disabled={isReadOnly || pendingIds.has(item.identifier)}
+        onClick={(e) => { e.stopPropagation(); void handleAdd(item); }}
+        title={L('ui.addToQuestionSet', 'Add to question set')}
+        aria-label={`${L('ui.addToQuestionSet', 'Add to question set')}: ${item.name}`}
+      >
+        <Icon name="plus" size={13} />
+      </button>
+    </div>
+  );
+
   return (
     <>
       <div className="ce-lib-head">
@@ -528,66 +583,33 @@ export function LibraryDock({ onCollapse }: LibraryDockProps) {
       )}
 
       <div className="ce-lib-scroll" role="list" aria-label={L('ui.questionList', 'Question list')}>
+        {hint === 'pickSkills' && (
+          <p className="ce-lib-hint" data-testid="library-pick-skills-hint">
+            {L('ui.pickSetSkillsHint', "Pick this set's skills to see the questions tagged with them first.")}
+          </p>
+        )}
+        {skillMatched && (
+          <p className="ce-lib-section-title">{L('ui.matchingSkillsHeading', "Questions for this set's skills")}</p>
+        )}
         {isLoading && content.length === 0 ? (
           <div className="ce-lib-loading" role="status">
             <span className="ce-spinner" style={{ width: 22, height: 22, borderWidth: 2 }} aria-hidden="true" />
             <span>{L('ui.loadingQuestions', 'Loading questions…')}</span>
           </div>
         ) : content.length === 0 ? (
-          <p className="ce-lib-empty">
-            {L('ui.noQuestionsFound', 'No questions found. Try a different search.')}
-          </p>
+          skillMatched ? (
+            <div className="ce-lib-empty">
+              <p className="ce-lib-empty-title">{L('ui.noSkillMatchTitle', "No questions are tagged with this set's skills yet")}</p>
+              <p>{L('ui.noSkillMatchHint', 'Tag questions with these skills, or add one from the questions below.')}</p>
+            </div>
+          ) : (
+            <p className="ce-lib-empty">
+              {L('ui.noQuestionsFound', 'No questions found. Try a different search.')}
+            </p>
+          )
         ) : (
           <>
-            {content.map((item) => (
-              <div
-                key={item.identifier}
-                className="ce-lib-item"
-                role="listitem"
-                tabIndex={0}
-                onClick={() => handlePreview(item)}
-                onKeyDown={(e) => {
-                  // Enter/Space bubbles here from the nested "+" button too
-                  // (before its own native click activation fires) — only
-                  // treat it as "preview the row" when the row itself is the
-                  // actual target, so a keyboard user tabbed to the add
-                  // button can still activate it instead of always previewing.
-                  if (e.target !== e.currentTarget) return;
-                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handlePreview(item); }
-                }}
-                title={L('ui.previewThisQuestion', 'Preview this question')}
-                aria-label={`${L('ui.previewThisQuestion', 'Preview this question')}: ${item.name}`}
-              >
-                <span className="ico"><Icon name={typeIcon(item.primaryCategory)} size={15} /></span>
-                <div className="body">
-                  <p className="nm">{item.name || L('ui.untitledQuestion', 'Untitled Question')}</p>
-                  <div className="meta">
-                    <span className="type-pill">{typeBadge(item.primaryCategory)}</span>
-                    {metaLine(item) && <span className="sub">{metaLine(item)}</span>}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="copy-btn"
-                  disabled={isReadOnly || pendingIds.has(item.identifier)}
-                  onClick={(e) => { e.stopPropagation(); void handleCopy(item); }}
-                  title={L('ui.copyQuestion', 'Copy to this section')}
-                  aria-label={`${L('ui.copyQuestion', 'Copy to this section')}: ${item.name}`}
-                >
-                  <Icon name="copy" size={13} />
-                </button>
-                <button
-                  type="button"
-                  className="add-btn"
-                  disabled={isReadOnly || pendingIds.has(item.identifier)}
-                  onClick={(e) => { e.stopPropagation(); void handleAdd(item); }}
-                  title={L('ui.addToQuestionSet', 'Add to question set')}
-                  aria-label={`${L('ui.addToQuestionSet', 'Add to question set')}: ${item.name}`}
-                >
-                  <Icon name="plus" size={13} />
-                </button>
-              </div>
-            ))}
+            {content.map(renderItem)}
 
             {hasMore && (
               <button
@@ -601,6 +623,28 @@ export function LibraryDock({ onCollapse }: LibraryDockProps) {
               </button>
             )}
           </>
+        )}
+
+        {skillMatched && otherContent.length > 0 && (
+          <div className="ce-lib-other" data-testid="library-other-questions">
+            <button
+              type="button"
+              className="ce-lib-other-toggle"
+              aria-expanded={othersOpen}
+              onClick={() => setOthersOpen((o) => !o)}
+            >
+              <Icon name={othersOpen ? 'caret' : 'caret-right'} size={13} />
+              <span>{L('ui.otherQuestionsHeading', 'Other questions ({count})').replace('{count}', String(otherContent.length))}</span>
+            </button>
+            {othersOpen && (
+              <>
+                <p className="ce-lib-other-hint">
+                  {L('ui.otherQuestionsHint', "These aren't tagged with any of this set's skills. You can still add them.")}
+                </p>
+                {otherContent.map(renderItem)}
+              </>
+            )}
+          </div>
         )}
       </div>
 

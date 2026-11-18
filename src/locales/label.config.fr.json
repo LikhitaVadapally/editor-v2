@@ -492,7 +492,13 @@
     "selectSkillFramework": "Sélectionner un référentiel de compétences",
     "noSkillFramework": "Le jeu de questions n'a pas de référentiel de compétences",
     "skills": "Compétences",
-    "selectSkills": "Sélectionner des compétences"
+    "selectSkills": "Sélectionner des compétences",
+    "pickSetSkillsHint": "Pick this set's skills to see the questions tagged with them first.",
+    "matchingSkillsHeading": "Questions for this set's skills",
+    "noSkillMatchTitle": "No questions are tagged with this set's skills yet",
+    "noSkillMatchHint": "Tag questions with these skills, or add one from the questions below.",
+    "otherQuestionsHeading": "Other questions ({count})",
+    "otherQuestionsHint": "These aren't tagged with any of this set's skills. You can still add them."
   },
   "categoryLabels": {
     "Multiselect Multiple Choice Question": "Question à choix multiple",
