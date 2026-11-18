@@ -9,13 +9,13 @@ export interface ICompetencyFrameworkSummary {
 
 /**
  * Live skill (competency) frameworks of the channel - `CompetencyFramework` objects, which never
- * appear in the curriculum Framework list. The channel is scoped by apiClient's X-Channel-Id header,
- * as for `searchFrameworks`.
+ * appear in the curriculum Framework list. Filtered by channel, as the course and content editors do:
+ * the X-Channel-Id header alone doesn't narrow the search, so other channels' frameworks would show.
  */
-export async function listCompetencyFrameworks(): Promise<ICompetencyFrameworkSummary[]> {
+export async function listCompetencyFrameworks(channel?: string): Promise<ICompetencyFrameworkSummary[]> {
   const response = await apiClient.post(URLS.composite.search, {
     request: {
-      filters: { objectType: ['CompetencyFramework'], status: ['Live'] },
+      filters: { objectType: ['CompetencyFramework'], status: ['Live'], ...(channel ? { channel: [channel] } : {}) },
       fields: ['identifier', 'name'],
       limit: 100,
       sort_by: { name: 'asc' },

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useTreeStore } from '../store/tree.store';
+import { useEditorStore } from '../store/editor.store';
 import { queryClient } from '../queryClient';
 import { getCompetencyFramework, listCompetencyFrameworks, type ICompetencyFrameworkSummary } from '../api/competencyFramework';
 import { competencyLeafSkills, competencySkillField, type CompetencySkill } from '../utils/competencyLeaves';
@@ -13,9 +14,10 @@ const frameworkKey = (id: string | undefined) => ['competency-framework', id] as
 
 /** The channel's Live skill frameworks - options for "Skill framework". */
 export function useSkillFrameworkOptions(): ICompetencyFrameworkSummary[] {
+  const channel = useEditorStore((s) => s.editorConfig?.context?.channel);
   const query = useQuery({
-    queryKey: ['competency-frameworks'],
-    queryFn: listCompetencyFrameworks,
+    queryKey: ['competency-frameworks', channel],
+    queryFn: () => listCompetencyFrameworks(channel),
     staleTime: 10 * 60 * 1000,
   });
   return query.data ?? NO_FRAMEWORKS;
