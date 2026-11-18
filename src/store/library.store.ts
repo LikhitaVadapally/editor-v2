@@ -13,9 +13,15 @@ export interface LibraryFilters {
 interface LibraryState {
   allContent: IContent[];
   filteredContent: IContent[];
-  /** Questions without the set's skills, shown collapsed under the matching ones (one page). */
+  /** Questions without the set's skills, shown collapsed under the matching ones and paged on their own. */
   allOtherContent: IContent[];
   otherContent: IContent[];
+  /** How many "Other questions" there are in all: the plain browse's count minus the matching ones. */
+  otherTotal: number;
+  /** Raw search offset/total of the plain browse that "Other questions" pages through. */
+  otherOffset: number;
+  otherRawTotal: number;
+  otherLoading: boolean;
   searchQuery: string;
   activeFilter: string;
   advancedFilters: LibraryFilters;
@@ -24,7 +30,9 @@ interface LibraryState {
   offset: number;
   sortAZ: boolean;
   setContent: (content: IContent[], total: number, rawCount: number) => void;
-  setOtherContent: (content: IContent[]) => void;
+  setOtherContent: (content: IContent[], total?: number, rawCount?: number, rawTotal?: number) => void;
+  appendOtherContent: (content: IContent[], rawCount: number) => void;
+  setOtherLoading: (loading: boolean) => void;
   appendContent: (content: IContent[], total: number, rawCount: number) => void;
   setFilter: (filter: string) => void;
   setSearch: (query: string) => void;
@@ -40,6 +48,10 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   filteredContent: [],
   allOtherContent: [],
   otherContent: [],
+  otherTotal: 0,
+  otherOffset: 0,
+  otherRawTotal: 0,
+  otherLoading: false,
   searchQuery: '',
   activeFilter: 'all',
   advancedFilters: {},
@@ -53,10 +65,17 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     get().applyFilter();
   },
 
-  setOtherContent: (content) => {
-    set({ allOtherContent: content });
+  setOtherContent: (content, total = 0, rawCount = 0, rawTotal = 0) => {
+    set({ allOtherContent: content, otherTotal: total, otherOffset: rawCount, otherRawTotal: rawTotal });
     get().applyFilter();
   },
+
+  appendOtherContent: (content, rawCount) => {
+    set((state) => ({ allOtherContent: [...state.allOtherContent, ...content], otherOffset: state.otherOffset + rawCount }));
+    get().applyFilter();
+  },
+
+  setOtherLoading: (loading) => set({ otherLoading: loading }),
 
   appendContent: (content, total, rawCount) => {
     const merged = [...get().allContent, ...content];

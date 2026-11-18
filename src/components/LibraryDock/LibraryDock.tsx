@@ -84,7 +84,8 @@ interface LibraryDockProps {
 export function LibraryDock({ onCollapse }: LibraryDockProps) {
   const L = useLabels();
   const {
-    content, otherContent, skillMatched, hint, isLoading, activeFilter, searchQuery, sortAZ, hasMore,
+    content, otherContent, otherTotal, hasMoreOther, otherLoading, loadMoreOther,
+    skillMatched, hint, isLoading, activeFilter, searchQuery, sortAZ, hasMore,
     search, setFilter, toggleSort, loadMore,
   } = useLibrary();
   // "Other questions" starts collapsed: the set's own skills are what the author is looking for.
@@ -625,7 +626,7 @@ export function LibraryDock({ onCollapse }: LibraryDockProps) {
           </>
         )}
 
-        {skillMatched && otherContent.length > 0 && (
+        {skillMatched && otherTotal > 0 && (
           <div className="ce-lib-other" data-testid="library-other-questions">
             <button
               type="button"
@@ -634,7 +635,7 @@ export function LibraryDock({ onCollapse }: LibraryDockProps) {
               onClick={() => setOthersOpen((o) => !o)}
             >
               <Icon name={othersOpen ? 'caret' : 'caret-right'} size={13} />
-              <span>{L('ui.otherQuestionsHeading', 'Other questions ({count})').replace('{count}', String(otherContent.length))}</span>
+              <span>{L('ui.otherQuestionsHeading', 'Other questions ({count})').replace('{count}', String(otherTotal))}</span>
             </button>
             {othersOpen && (
               <>
@@ -642,6 +643,17 @@ export function LibraryDock({ onCollapse }: LibraryDockProps) {
                   {L('ui.otherQuestionsHint', "These aren't tagged with any of this set's skills. You can still add them.")}
                 </p>
                 {otherContent.map(renderItem)}
+                {hasMoreOther && (
+                  <button
+                    type="button"
+                    className="ce-lib-loadmore"
+                    onClick={loadMoreOther}
+                    disabled={otherLoading}
+                    aria-label={L('ui.loadMoreOtherQuestions', 'Load more other questions')}
+                  >
+                    {otherLoading ? L('ui.loading', 'Loading…') : L('ui.loadMore', 'Load more')}
+                  </button>
+                )}
               </>
             )}
           </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSetLibraryFilters, selectOtherQuestions, setLibraryHint } from './useLibrary';
+import { buildSetLibraryFilters, otherQuestionsTotal, selectOtherQuestions, setLibraryHint } from './useLibrary';
 import type { IContent } from '../types/content';
 
 const q = (identifier: string, extra: Record<string, unknown> = {}) => ({ identifier, name: identifier, ...extra }) as unknown as IContent;
@@ -51,5 +51,17 @@ describe('setLibraryHint', () => {
   it('stays quiet once skills are set, or when the channel has no skill frameworks (negative)', () => {
     expect(setLibraryHint({ ready: true, hasFrameworks: true })).toBeNull();
     expect(setLibraryHint({ ready: false, hasFrameworks: false })).toBeNull();
+  });
+});
+
+describe('otherQuestionsTotal', () => {
+  it('counts every other question, not just a loaded page: the plain browse less the matches (positive)', () => {
+    // ed-dev, "cuisine q test": 341 Live questions, 2 tagged with the set's skills.
+    expect(otherQuestionsTotal(341, 2)).toBe(339);
+  });
+
+  it('never goes below zero (negative)', () => {
+    expect(otherQuestionsTotal(1, 3)).toBe(0);
+    expect(otherQuestionsTotal(0, 0)).toBe(0);
   });
 });

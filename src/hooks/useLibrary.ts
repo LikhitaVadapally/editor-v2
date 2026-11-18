@@ -8,8 +8,6 @@ import type { LibraryFilters } from '../store/library.store';
 import type { IContent } from '../types/content';
 
 const PAGE_SIZE = 20;
-/** One page of "Other questions": they're there to stay reachable, not to be browsed exhaustively. */
-const OTHER_QUESTIONS_LIMIT = 50;
 
 /**
  * Filters for the questions that teach the set's skills: the set's skill framework, and at least
@@ -38,6 +36,18 @@ export function selectOtherQuestions(
   });
 }
 
+/**
+ * How many "Other questions" there are: the plain browse's count less the matching ones, which the
+ * plain browse also finds (it is the same search without the skill filter).
+ *
+ * Not done server-side: composite search can exclude the skill codes (`{ [skillField]: { '!=': codes } }`),
+ * but not "this framework AND these codes" together, and the skill field (`skill`) is shared with
+ * curriculum frameworks, so another framework's question carrying the same code would vanish too.
+ */
+export function otherQuestionsTotal(otherCount: number, matchedCount: number): number {
+  return Math.max(0, otherCount - matchedCount);
+}
+
 /** The hint above the library: ask for the set's skills when it has none yet and the channel offers frameworks. */
 export function setLibraryHint(opts: { ready: boolean; hasFrameworks: boolean }): 'pickSkills' | null {
   return !opts.ready && opts.hasFrameworks ? 'pickSkills' : null;
@@ -49,6 +59,20 @@ export function setLibraryHint(opts: { ready: boolean; hasFrameworks: boolean })
 // let a stale response from one caller land after a newer request from the
 // other, since neither would recognize the other's requestId as current.
 let requestSeq = 0;
+// "Other questions" pages on its own; a fresh browse bumps this too so a page still in flight is dropped.
+let otherSeq = 0;
+
+function browseFilters(filter: string, advancedFilters: LibraryFilters): Record<string, unknown> {
+  const filters: Record<string, unknown> = { status: ['Live'] };
+  if (filter && filter !== 'all') filters['primaryCategory'] = [filter];
+  if (advancedFilters?.board?.length) filters['board'] = advancedFilters.board;
+  if (advancedFilters?.medium?.length) filters['medium'] = advancedFilters.medium;
+  if (advancedFilters?.gradeLevel?.length) filters['gradeLevel'] = advancedFilters.gradeLevel;
+  if (advancedFilters?.subject?.length) filters['subject'] = advancedFilters.subject;
+  return filters;
+}
+
+const sortOf = (sortAZ: boolean): Record<string, string> => (sortAZ ? { name: 'asc' } : { lastUpdatedOn: 'desc' });
 
 async function loadLibrary(
   channel: string,
@@ -60,14 +84,10 @@ async function loadLibrary(
 ): Promise<void> {
   const requestId = ++requestSeq;
   const state = useLibraryStore.getState();
+  if (reset) { otherSeq++; state.setOtherLoading(false); }
   state.setLoading(true);
   try {
-    const filters: Record<string, unknown> = { status: ['Live'] };
-    if (filter && filter !== 'all') filters['primaryCategory'] = [filter];
-    if (advancedFilters?.board?.length) filters['board'] = advancedFilters.board;
-    if (advancedFilters?.medium?.length) filters['medium'] = advancedFilters.medium;
-    if (advancedFilters?.gradeLevel?.length) filters['gradeLevel'] = advancedFilters.gradeLevel;
-    if (advancedFilters?.subject?.length) filters['subject'] = advancedFilters.subject;
+    const filters = browseFilters(filter, advancedFilters);
 
     // With skills on the set, the main list is the questions tagged with them; the rest of the
     // same browse sits below it under "Other questions".
@@ -77,7 +97,7 @@ async function loadLibrary(
       : undefined;
 
     const currentOffset = reset ? 0 : state.offset;
-    const sortBy: Record<string, string> = sortAZ ? { name: 'asc' } : { lastUpdatedOn: 'desc' };
+    const sortBy = sortOf(sortAZ);
     const [{ content, count }, others] = await Promise.all([
       compositeSearch({
         filters: { ...filters, ...(matching ?? {}) },
@@ -87,12 +107,12 @@ async function loadLibrary(
         channel: channel || undefined,
         sortBy,
       }),
-      // Only on a fresh browse: "Load more" pages the matching list alone.
+      // Only on a fresh browse; each list has its own "Load more".
       matching && reset
         ? compositeSearch({
           filters,
           query,
-          limit: OTHER_QUESTIONS_LIMIT,
+          limit: PAGE_SIZE,
           offset: 0,
           channel: channel || undefined,
           sortBy,
@@ -113,15 +133,53 @@ async function loadLibrary(
     if (!matching) state.setOtherContent([]);
     else if (others) {
       const shown = new Set(useLibraryStore.getState().allContent.map((item) => item.identifier));
-      state.setOtherContent(selectOtherQuestions(
-        others.content.filter((item) => !isCopy(item.identifier)),
-        shown, set.frameworkId as string, set.skillField as string, set.skills,
-      ));
+      state.setOtherContent(
+        selectOtherQuestions(
+          others.content.filter((item) => !isCopy(item.identifier)),
+          shown, set.frameworkId as string, set.skillField as string, set.skills,
+        ),
+        otherQuestionsTotal(others.count, count),
+        others.content.length,
+        others.count,
+      );
     }
   } catch (e) {
     console.error('[useLibrary] load error:', e);
   } finally {
     if (requestId === requestSeq) useLibraryStore.getState().setLoading(false);
+  }
+}
+
+/** The next page of "Other questions": the plain browse from where it stopped, minus anything matching. */
+async function loadMoreOtherQuestions(channel: string): Promise<void> {
+  const state = useLibraryStore.getState();
+  const set = currentSetSkills();
+  if (state.otherLoading || !set.ready || !set.frameworkId || !set.skillField) return;
+  const seq = ++otherSeq;
+  state.setOtherLoading(true);
+  try {
+    const { searchQuery, activeFilter, advancedFilters, sortAZ, otherOffset } = state;
+    const { content } = await compositeSearch({
+      filters: browseFilters(activeFilter, advancedFilters),
+      query: searchQuery,
+      limit: PAGE_SIZE,
+      offset: otherOffset,
+      channel: channel || undefined,
+      sortBy: sortOf(sortAZ),
+      fields: [...DEFAULT_SEARCH_FIELDS, SKILL_FRAMEWORK_FIELD, set.skillField],
+    });
+    if (seq !== otherSeq) return; // a fresh browse replaced the list meanwhile
+    const now = useLibraryStore.getState();
+    const { isCopy } = useCopyRegistryStore.getState();
+    const shown = new Set([...now.allContent, ...now.allOtherContent].map((item) => item.identifier));
+    now.appendOtherContent(
+      selectOtherQuestions(content.filter((item) => !isCopy(item.identifier)), shown, set.frameworkId, set.skillField, set.skills),
+      content.length,
+    );
+  } catch (e) {
+    console.error('[useLibrary] other questions load error:', e);
+  } finally {
+    if (seq === otherSeq) useLibraryStore.getState().setOtherLoading(false);
   }
 }
 
@@ -222,6 +280,11 @@ export function useLibrary() {
     /** The main list holds the questions tagged with the set's skills. */
     skillMatched: setSkills.ready,
     otherContent: store.otherContent,
+    /** All "Other questions", not just the loaded ones. */
+    otherTotal: store.otherTotal,
+    hasMoreOther: store.otherOffset < store.otherRawTotal,
+    otherLoading: store.otherLoading,
+    loadMoreOther: () => { void loadMoreOtherQuestions(channel); },
     hint: setLibraryHint({ ready: setSkills.ready, hasFrameworks }),
     isLoading: store.isLoading,
     totalCount: store.totalCount,
